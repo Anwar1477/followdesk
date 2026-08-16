@@ -2,6 +2,7 @@ import { Request, Response, NextFunction } from 'express';
 import mongoose from 'mongoose';
 import { ApiError } from '../utils/ApiError';
 import { workspaceMemberRepository } from '../repositories/workspaceMember.repository';
+import { asyncHandler } from '../utils/asyncHandler';
 
 /**
  * Verifies the authenticated user belongs to req.params.workspaceId and
@@ -12,8 +13,12 @@ import { workspaceMemberRepository } from '../repositories/workspaceMember.repos
  * workspace membership inside the service layer via
  * `assertWorkspaceMembership` since their routes don't carry a
  * :workspaceId param - see services/*.service.ts.
+ *
+ * Wrapped in asyncHandler: Express 4 does not catch rejections thrown
+ * from an async middleware after an `await` on its own, which would
+ * otherwise leave the request hanging instead of reaching errorHandler.
  */
-export async function requireWorkspaceMember(req: Request, _res: Response, next: NextFunction): Promise<void> {
+export const requireWorkspaceMember = asyncHandler(async (req: Request, _res: Response, next: NextFunction): Promise<void> => {
   const workspaceId = req.params.workspaceId;
   if (!workspaceId || !mongoose.isValidObjectId(workspaceId)) {
     throw ApiError.validation('Invalid workspace id');
@@ -31,4 +36,4 @@ export async function requireWorkspaceMember(req: Request, _res: Response, next:
     memberId: membership._id.toString(),
   };
   next();
-}
+});
